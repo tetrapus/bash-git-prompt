@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+set_term_title(){
+   echo -en "\033]0;$1\a"
+}
+
 function async_run() {
   {
     eval "$@" &> /dev/null
@@ -202,6 +206,19 @@ function git_prompt_config() {
   _isroot=false
   [[ $UID -eq 0 ]] && _isroot=true
 
+  local term_title="📂  ${PWD##*/}"
+  local venv="${VIRTUAL_ENV##*/}"
+  if [[ -n $venv ]]; then
+    term_title="☡ ${venv^}"
+  else
+    local repo=$(git rev-parse --show-toplevel 2> /dev/null)
+    if [[ -n $repo ]]; then
+      term_title="⌥ $(basename $repo)"
+    fi
+  fi
+
+  set_term_title "$term_title"
+
   # There are two files related to colors:
   #
   #  prompt-colors.sh -- sets generic color names suitable for bash 'PS1' prompt
@@ -263,13 +280,13 @@ function git_prompt_config() {
   if [[ "$GIT_PROMPT_LEADING_SPACE" = 0 ]]; then
     PROMPT_LEADING_SPACE=""
   else
-    PROMPT_LEADING_SPACE=" "
+    PROMPT_LEADING_SPACE=""
   fi
 
   if [[ "$GIT_PROMPT_ONLY_IN_REPO" = 1 ]]; then
     EMPTY_PROMPT="$OLD_GITPROMPT"
   else
-    local ps="$(gp_add_virtualenv_to_prompt)$PROMPT_START$($prompt_callback)$PROMPT_END"
+    local ps="$PROMPT_START$($prompt_callback)$(gp_add_virtualenv_to_prompt)$PROMPT_END"
     EMPTY_PROMPT="${ps//_LAST_COMMAND_INDICATOR_/${LAST_COMMAND_INDICATOR}}"
   fi
 
@@ -308,7 +325,6 @@ function update_old_git_prompt() {
 
 function setGitPrompt() {
   update_old_git_prompt
-
   local repo=$(git rev-parse --show-toplevel 2> /dev/null)
   if [[ ! -e "$repo" ]] && [[ "$GIT_PROMPT_ONLY_IN_REPO" = 1 ]]; then
     # we do not permit bash-git-prompt outside git repos, so nothing to do
@@ -512,7 +528,7 @@ function updatePrompt() {
     __chk_gitvar_status 'CLEAN'      '-eq 1'   -
     __add_status        "$ResetColor$GIT_PROMPT_SUFFIX"
 
-    NEW_PROMPT="$(gp_add_virtualenv_to_prompt)$PROMPT_START$($prompt_callback)$STATUS$PROMPT_END"
+    NEW_PROMPT="$PROMPT_START$($prompt_callback)$(gp_add_virtualenv_to_prompt)$STATUS$PROMPT_END"
   else
     NEW_PROMPT="$EMPTY_PROMPT"
   fi
